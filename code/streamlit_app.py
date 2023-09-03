@@ -38,6 +38,16 @@ def update_table(id, column, new_value):
     ward.update_column_value_of_article_with_id(id, column, new_value)
     st.success(f"Article with ID {id} has been updated.", icon="✅")
 
+def update_new_article(selected_category,selected_type,selected_gender,selected_colour,selected_season,selected_usage):
+    image_output.subCategory[0] = selected_category
+    image_output.articleType[0] = selected_type
+    image_output.gender[0] = selected_gender
+    image_output.baseColour[0] = selected_colour
+    image_output.season[0] = selected_season
+    image_output.usage[0] = selected_usage
+    st.success("Article has been updated.", icon="✅")
+    st.session_state["text"] = ""
+
 def insert_article(path):
     ward = Wardrobe()
     # Display photo if path is provided
@@ -62,6 +72,20 @@ def insert_articles(image_list):
 def delete_wardrobe():
     ward = Wardrobe()
     ward.delete_wardrobe()
+    folder_path = 'streamlit_uploaded_photos/'
+    # Verify if the folder exists
+    if os.path.exists(folder_path):
+        # Get a list of all files in the folder
+        files = os.listdir(folder_path)
+        # Loop through the files and delete each one
+        for file in files:
+            file_path = os.path.join(folder_path, file)
+            # Check if it's a file (not a subdirectory)
+            if os.path.isfile(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {str(e)}")
 
 
 class Wardrobe:
@@ -510,10 +534,9 @@ class Wardrobe:
         # Call the function to run the SELECT query on the database and retrieve the result
         return self.query_wardrobe(query)
     
-    def create_combinations_of_article_with_wardrobe_clothes(self, path):
-        image_output = self.set_values_from_image_path(path)
+    def create_combinations_of_article_with_wardrobe_clothes(self, image_output):
         df = pd.DataFrame(self.get_all_clothes(),
-             columns=['subCategory', 'articleType', 'gender', 'baseColour', 'season', 'usage', 'image_path'])
+             columns=['id', 'subCategory', 'articleType', 'gender', 'baseColour', 'season', 'usage', 'image_path'])
         merged_df = pd.merge(image_output, df, on=['usage'], suffixes=('', '_match'))
         filtered_df = self.filter_merged_df(merged_df)
         return filtered_df
@@ -527,6 +550,11 @@ st.sidebar.image(img)
 st.title(':green[dressmeup]')
 table_data = pd.DataFrame(ward.get_all_clothes(),
     columns=['ID','Category', 'Article', 'Gender_Age_Group', 'Base_Colour', 'Season', 'Usage', 'Image_path'])
+category_values = ['Bottomwear','Topwear']
+type_values = ['Capris','Jackets','Jeans','Kurtas','Leggings','Patiala','Shirts',
+                                'Shorts','Skirts','Sweaters','Sweatshirts','Tops','Track Pants',
+                                'Trousers','Tshirts','Tunics']
+gender_values = ['Boys','Girls','Men','Unisex','Women']
 colour_values = ['Aconite Violet', 'Andover Green', 'Antwarp Blue', 'Apricot Orange', 'Apricot Yellow', 
                  'Artemesia Green', 'Beige', 'Benzol Green', 'Black', 'Blackish Olive', 'Blue', 
                  'Blue Violet', 'Brick Red', 'Brown', 'Buffy Citrine', 'Burnt Sienna', 'Calamine BLue', 
@@ -559,9 +587,22 @@ colour_values = ['Aconite Violet', 'Andover Green', 'Antwarp Blue', 'Apricot Ora
                  'Venice Green', 'Veronia Purple', 'Vinaceous Cinnamon', 'Vinaceous Tawny', 'Violet', 
                  'Violet Blue', 'Violet Carmine', 'Violet Red', 'Vistoris Lake', 'Warm Gray', 'White', 
                  'Yellow', 'Yellow Green', 'Yellow Ocher', 'Yellow Orange']
+season_values = ['Fall/Winter','Spring/Summer','All Season']
+usage_values = ['Casual','Ethnic','Formal','Sports']
+
+view = st.sidebar.checkbox('My Wardrobe View')
+insert = st.sidebar.checkbox('Insert New Articles')
+manage = st.sidebar.checkbox('My Wardrobe Management')
+identify = st.sidebar.checkbox('Colour Identification')
+combine = st.sidebar.checkbox('Clothes Combinations')
+delete = st.sidebar.checkbox('Delete My Wardrobe')
+
+if not view and not insert and not manage and not identify and not combine and not delete:
+    st.balloons()
+    ''
 
 # Sidebar option to view the SQLite table
-if st.sidebar.checkbox('My Wardrobe View'):
+if view:
     st.markdown('## My Wardrobe View')
     df = st.dataframe(
         table_data,
@@ -572,7 +613,7 @@ if st.sidebar.checkbox('My Wardrobe View'):
     )
 
 # Sidebar input for photo-path
-if st.sidebar.checkbox('Insert New Articles'):
+if insert:
     st.markdown('## Insert New Articles')
     photo_path = st.text_input('Enter Photo URL Path (preferred for better AI prediction quality):', 
                                key="text")
@@ -591,7 +632,7 @@ if st.sidebar.checkbox('Insert New Articles'):
         st.button("Insert the Article(s) to the Wardrobe", on_click=insert_articles, args=(image_list,),
                   type="primary")
 
-if st.sidebar.checkbox('My Wardrobe Management'):
+if manage:
     st.markdown('## My Wardrobe Management')
     if (len(ward.get_existing_ids()) > 0):
         # Article ID
@@ -603,7 +644,6 @@ if st.sidebar.checkbox('My Wardrobe Management'):
         with col1:
             # Update Article's Category value
             with st.form("category_form"):
-                category_values = ['Bottomwear','Topwear']
                 current_category = category_values.index(ward.get_subCategory_of_article_with_id(selected_id))
                 selected_category = st.selectbox('Select Category:', category_values,
                                                 index=current_category)
@@ -612,9 +652,6 @@ if st.sidebar.checkbox('My Wardrobe Management'):
                     st.success(f"Article with ID {selected_id} has been updated.", icon="✅")
             # Update Article's Type value
             with st.form("type_form"):
-                type_values = ['Capris','Jackets','Jeans','Kurtas','Leggings','Patiala','Shirts',
-                                'Shorts','Skirts','Sweaters','Sweatshirts','Tops','Track Pants',
-                                'Trousers','Tshirts','Tunics']
                 current_type = type_values.index(ward.get_articleType_of_article_with_id(selected_id))
                 selected_type = st.selectbox('Select Type:', type_values, 
                                             index=current_type)
@@ -624,7 +661,6 @@ if st.sidebar.checkbox('My Wardrobe Management'):
         with col2:
             # Update Article's Gender/Age Group
             with st.form("gender_form"):
-                gender_values = ['Boys','Girls','Men','Unisex','Women']
                 current_gender = gender_values.index(ward.get_gender_of_article_with_id(selected_id))
                 selected_gender = st.selectbox('Select Gender/Age Group:', gender_values,
                                             index=current_gender)
@@ -642,7 +678,6 @@ if st.sidebar.checkbox('My Wardrobe Management'):
         with col3:
             # Update Article's Season
             with st.form("season_form"):
-                season_values = ['Fall/Winter','Spring/Summer','All Season']
                 current_season = season_values.index(ward.get_season_of_article_with_id(selected_id))
                 selected_season = st.selectbox('Select Season:', season_values, 
                                             index=current_season)
@@ -651,7 +686,6 @@ if st.sidebar.checkbox('My Wardrobe Management'):
                     st.success(f"Article with ID {selected_id} has been updated.", icon="✅")
             # Update Article's Usage
             with st.form("usage_form"):
-                usage_values = ['Casual','Ethnic','Formal','Sports']
                 current_usage = usage_values.index(ward.get_usage_of_article_with_id(selected_id))
                 selected_usage = st.selectbox('Select Usage:', usage_values, 
                                             index=current_usage)
@@ -662,7 +696,7 @@ if st.sidebar.checkbox('My Wardrobe Management'):
         st.button('Delete article from Wardrobe', on_click=delete_article, type="primary")
 
 # Sidebar option to create a pop-up window containing a photo
-if st.sidebar.checkbox('Colour Identification'):
+if identify:
     st.markdown('## Article Colour Point Detection')
     if (len(ward.get_existing_ids()) > 0):
         # Article ID
@@ -683,7 +717,7 @@ if st.sidebar.checkbox('Colour Identification'):
             st.button("Update Base Colour", on_click=update_table, 
                       kwargs=dict(id=sel_id, column='baseColour', new_value=det_colour), type="primary")
 
-if st.sidebar.checkbox('Clothes Combinations'):
+if combine:
     st.markdown('## Clothes Combinations')
     '##### *Firstly check that all Wardrobe clothes values are correct...*'
     # but1 = st.button('Create Combinations In Wardrobe', type='primary', use_container_width=True)
@@ -701,45 +735,67 @@ if st.sidebar.checkbox('Clothes Combinations'):
         if (len(ward.get_existing_combination_ids()) > 0):
             # Article ID
             comb_id = st.selectbox('Select Combination ID:', tuple(ward.get_existing_combination_ids()))
-            # Article's Image
+            # Combination's Images (first Topwear and below the Bottomwear)
             img_1 = ward.get_top_bottom_article_image_path(comb_id, 'Topwear')
             st.image(img_1, use_column_width='auto', channels='BGR')
             img_2 = ward.get_top_bottom_article_image_path(comb_id, 'Bottomwear')
             st.image(img_2, use_column_width='auto', channels='BGR')
     with tab2:
-        photo_path = st.text_input('Enter Photo URL Path (preferred for better AI prediction quality):', 
-                                key="text")
+        photo_path = st.text_input('Enter Photo URL Path:', key="text")
         if photo_path:
-            ward.create_combinations_of_article_with_wardrobe_clothes(photo_path)
-            st.button('Insert the Article to the Wardrobe', on_click=insert_article, 
-                    kwargs=dict(path=str(photo_path)), type="primary")
-        'OR (if you have good-quality pictures...)'
-        if "file_uploader_key" not in st.session_state:
-            st.session_state["file_uploader_key"] = 0
-        if "uploaded_files" not in st.session_state:
-            st.session_state["uploaded_files"] = []
-        image_list = st.file_uploader('Upload photos:', type=['png','jpg'], accept_multiple_files=True,
-                                    key=st.session_state["file_uploader_key"])
-        if image_list:
-            st.session_state["uploaded_files"] = image_list
-            st.button("Insert the Article(s) to the Wardrobe", on_click=insert_articles, args=(image_list,),
-                    type="primary")    
-    
-    # if ward.does_combinations_table_exist():
-
-    # else:
-    
-    # expander = st.expander("Combine the clothes in my Wardrobe")
-    # ward.create_combinations_in_wardrobe
-    # photo_path = st.text_input('Enter Photo URL Path (preferred for better AI prediction quality):', 
-    #                            key="text")
-    # if photo_path:
-    #     st.button('Insert the Article to the Wardrobe', on_click=insert_article, 
-    #               kwargs=dict(path=str(photo_path)), type="primary")
-    #     ward.create_combinations_of_article_with_wardrobe_clothes(photo_path)
+            image_output = ward.set_values_from_image_path(photo_path)
+            '###### Article'
+            st.dataframe(image_output, hide_index=True)
+            st.image(photo_path, use_column_width='auto', channels='BGR')
+            with st.form("new_article_form"):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    # Update Article's Category value
+                    current_category = category_values.index(image_output.subCategory[0])
+                    selected_category = st.selectbox('Select Category:', category_values, index=current_category)
+                    # Update Article's Type value
+                    current_type = type_values.index(image_output.articleType[0])
+                    selected_type = st.selectbox('Select Type:', type_values, index=current_type)
+                with col2:
+                    # Update Article's Gender/Age Group
+                    current_gender = gender_values.index(image_output.gender[0])
+                    selected_gender = st.selectbox('Select Gender/Age Group:', gender_values, index=current_gender)
+                    # Update Article's baseColour
+                    current_colour = colour_values.index(image_output.baseColour[0])
+                    selected_colour = st.selectbox('Select Base Colour:', colour_values, index=current_colour)
+                with col3:
+                    # Update Article's Season
+                    current_season = season_values.index(image_output.season[0])
+                    selected_season = st.selectbox('Select Season:', season_values, index=current_season)
+                    # Update Article's Usage
+                    current_usage = usage_values.index(image_output.usage[0])
+                    selected_usage = st.selectbox('Select Usage:', usage_values, index=current_usage)                            
+                submitButton = st.form_submit_button("Update Article Values And Create Combinations")
+                                                    #  , on_click=update_new_article, 
+                                                    #  args=(selected_category,selected_type,selected_gender,
+                                                    #        selected_colour,selected_season,selected_usage,))
+                if submitButton:
+                    image_output.subCategory[0] = selected_category
+                    image_output.articleType[0] = selected_type
+                    image_output.gender[0] = selected_gender
+                    image_output.baseColour[0] = selected_colour
+                    image_output.season[0] = selected_season
+                    image_output.usage[0] = selected_usage
+                    st.success("Article has been updated.", icon="✅")
+                    '###### Combinations Table'
+                    combinations = pd.DataFrame(ward.create_combinations_of_article_with_wardrobe_clothes(image_output))
+                    comb_df = st.dataframe(combinations, hide_index=True)
+                    for i, row in combinations.iterrows():
+                        f'###### Combination {i+1}'
+                        if combinations.subCategory[i] == 'Topwear':
+                            st.image(combinations.image_path[i], use_column_width='auto', channels='BGR')
+                            st.image(combinations.image_path_match[i], use_column_width='auto', channels='BGR')
+                        else:
+                            st.image(combinations.image_path_match[i], use_column_width='auto', channels='BGR')
+                            st.image(combinations.image_path[i], use_column_width='auto', channels='BGR')
 
 # Sidebar option to delete the wardrobe
-if st.sidebar.checkbox('Delete My Wardrobe'):
+if delete:
     st.markdown('## Delete My Wardrobe')
     if st.button('Delete My Wardrobe', type='primary'):
         '### Are you sure that you want to delete the whole wardrobe?'
