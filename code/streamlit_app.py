@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import math
-import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Flatten
+from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 import cv2
-from PIL import Image
 import sqlite3
 from urllib.request import Request, urlopen
 import json
@@ -103,10 +104,8 @@ class Wardrobe:
         c.execute('''CREATE TABLE IF NOT EXISTS wardrobe (id INTEGER PRIMARY KEY AUTOINCREMENT, \
                 subCategory TEXT, articleType TEXT, gender TEXT, baseColour TEXT, season TEXT, \
                 usage TEXT, image_path TEXT)''')
-        self.model = tf.keras.models.load_model(
-            "../models/saved_models/from_papersource/trained_model (5).h5", 
-            compile=True)
         df = pd.read_csv('../data/df.csv', sep = '\t').drop_duplicates()
+        self.model = self.create_model(df)
         # Create a DataFrame to store the encoded values and their corresponding labels
         subCategory_labels = df[['subCategory_enc', 'subCategory']].drop_duplicates().\
             sort_values(by='subCategory_enc')['subCategory'].tolist()
@@ -122,7 +121,51 @@ class Wardrobe:
             sort_values(by='usage_enc')['usage'].tolist()
         self.target_names = [subCategory_labels, articleType_labels, gender_labels,
                         baseColour_labels, season_labels, usage_labels]
-#         output = ["subCategory", "articleType", "gender", "baseColour", "season", "usage"]
+
+    def create_model(self, df):
+        weights_path = '../models/weights.85-1.77.hdf5'
+        # Define image dimensions
+        img_height, img_width = 224, 224
+        # Use the ResNet50 pretrained model as the feature extractor
+        resnet_model = ResNet50(include_top=False,
+                                input_shape=(img_height, img_width, 3),
+                                pooling='avg',
+                                weights='imagenet')
+        # Freeze the layers of the ResNet50 model to use it as a feature extractor
+        for layer in resnet_model.layers:
+            layer.trainable = False
+        # Create the multi-output model
+        inputs = Input(shape=(img_height, img_width, 3))
+        x = preprocess_input(inputs)
+        x = resnet_model(x)
+        x = Flatten()(x)
+        x = Dense(512, activation='relu')(x)
+        # Define the number of classes for each output column
+        num_classes_gender = len(df['gender'].unique())
+        num_classes_articleType = len(df['articleType'].unique())
+        num_classes_baseColour = len(df['baseColour'].unique())
+        num_classes_usage = len(df['usage'].unique())
+        # Output layers for each output column
+        subCategory_output = Dense(1, activation='sigmoid', name='subCategory_output')(x)
+        articleType_output = Dense(num_classes_articleType, activation='softmax', name='articleType_output')(x)
+        gender_output = Dense(num_classes_gender, activation='softmax', name='gender_output')(x)
+        baseColour_output = Dense(num_classes_baseColour, activation='softmax', name='baseColour_output')(x)
+        season_output = Dense(1, activation='sigmoid', name='season_output')(x)
+        usage_output = Dense(num_classes_usage, activation='softmax', name='usage_output')(x)
+        # Create the model with multiple output layers
+        model = Model(inputs=inputs, outputs=[subCategory_output, articleType_output, gender_output, 
+                                            baseColour_output, season_output, usage_output])
+        # Compile the model with appropriate loss functions for each output
+        model.compile(optimizer='adam',
+                    loss={'subCategory_output': 'binary_crossentropy',
+                            'articleType_output': 'sparse_categorical_crossentropy',  
+                            'gender_output': 'sparse_categorical_crossentropy',
+                            'baseColour_output': 'sparse_categorical_crossentropy',
+                            'season_output': 'binary_crossentropy',
+                            'usage_output': 'sparse_categorical_crossentropy'},
+                    metrics=['accuracy'])
+        model.load_weights(weights_path)
+        return model
         
     def read_image_from_path(self, path):
         if (path[:4].lower() == 'http' or path[:3].lower() == 'www'):
