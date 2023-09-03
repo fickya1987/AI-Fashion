@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import math
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense, Flatten
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
+# from tensorflow import keras
+from keras.models import Model
+from keras.layers import Input, Dense, Flatten
+from keras.applications.resnet50 import ResNet50, preprocess_input
 import cv2
 import sqlite3
 from urllib.request import Request, urlopen
@@ -743,7 +744,7 @@ if identify:
     st.markdown('## Article Colour Point Detection')
     if (len(ward.get_existing_ids()) > 0):
         # Article ID
-        sel_id = st.selectbox('Select Article ID:', tuple(ward.get_existing_ids()))
+        sel_id = st.selectbox('Select Image of Article ID:', tuple(ward.get_existing_ids()))
         # Article's Image
         img = ward.get_article_image_path(sel_id)
         st.image(img, use_column_width='auto', channels='BGR')
@@ -784,7 +785,7 @@ if combine:
             img_2 = ward.get_top_bottom_article_image_path(comb_id, 'Bottomwear')
             st.image(img_2, use_column_width='auto', channels='BGR')
     with tab2:
-        photo_path = st.text_input('Enter Photo URL Path:', key="text")
+        photo_path = st.text_input('Enter Photo URL Path:', key="photo_url")
         if photo_path:
             image_output = ward.set_values_from_image_path(photo_path)
             '###### Article'
@@ -814,9 +815,6 @@ if combine:
                     current_usage = usage_values.index(image_output.usage[0])
                     selected_usage = st.selectbox('Select Usage:', usage_values, index=current_usage)                            
                 submitButton = st.form_submit_button("Update Article Values And Create Combinations")
-                                                    #  , on_click=update_new_article, 
-                                                    #  args=(selected_category,selected_type,selected_gender,
-                                                    #        selected_colour,selected_season,selected_usage,))
                 if submitButton:
                     image_output.subCategory[0] = selected_category
                     image_output.articleType[0] = selected_type
