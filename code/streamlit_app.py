@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import math
-# from tensorflow import keras
 from keras.models import Model
 from keras.layers import Input, Dense, Flatten
 from keras.applications.resnet50 import ResNet50, preprocess_input
@@ -181,6 +180,8 @@ class Wardrobe:
     def set_values_from_image_path(self, path):
         output = ["subCategory", "articleType", "gender", "baseColour", "season", "usage"]
         img = self.read_image_from_path(path)
+        # Check that is an image
+        
         # Transform to jpg
         _, buffer = cv2.imencode('.jpg', img)
         img = np.array(buffer).tobytes()
