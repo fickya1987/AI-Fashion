@@ -839,40 +839,16 @@ if identify:
 if combine:
     st.markdown('## Clothes Combinations')
     '##### *Firstly check that all Wardrobe clothes values are correct...*'
-    # but1 = st.button('Create Combinations In Wardrobe', type='primary', use_container_width=True)
-    tab1, tab2 = st.tabs(["My Wardrobe Combinations", "Combinations With A New Article"])
+    tab1, tab2 = st.tabs(["Combinations With A New Article", "My Wardrobe Combinations"])
     with tab1:
-        ward.create_combinations_in_wardrobe()
-        combinations = pd.DataFrame(ward.get_all_clothes_combinations(), 
-                                  columns=['Combination_ID', 'Article_ID_1', 'Article_ID_2'])
-        comb_df = st.dataframe(combinations,
-        column_config={"Image_Path_1": st.column_config.LinkColumn(
-            help="URL to view the article", required=True),
-            "Image_Path_2": st.column_config.LinkColumn(
-            help="URL to view the article", required=True)},
-        hide_index=True, use_container_width=True)
-        if (len(ward.get_existing_combination_ids()) > 0):
-            # Article ID
-            comb_id = st.selectbox('Select Combination ID:', tuple(ward.get_existing_combination_ids()))
-            # Combination's Images (first Topwear and below the Bottomwear)
-            img_1 = ward.get_top_bottom_article_image_path(comb_id, 'Topwear')
-            st.image(img_1, use_column_width='auto', channels='BGR')
-            img_2 = ward.get_top_bottom_article_image_path(comb_id, 'Bottomwear')
-            st.image(img_2, use_column_width='auto', channels='BGR')
-    with tab2:
         photo_path = st.text_input('Enter Photo URL Path:', key="photo_url")
         if photo_path and is_url_image(photo_path):
             image_output = ward.set_values_from_image_path(photo_path)
             '###### Article'
             st.dataframe(image_output, hide_index=True)
             st.image(photo_path, use_column_width='auto', channels='BGR')
-            # det_colour = image_output.baseColour[0]
-            # st.session_state.new_article_colour = image_output.baseColour[0]
-            on = st.toggle('Identify Article Colour')
-            if on:
-            # if st.button('Identify Article Colour'):
+            if st.button('Identify Article Colour'):
                 # Read and resize image
-                # img = ward.resize_article_image_with_width(sel_id, 600)
                 img = ward.read_image_from_path(photo_path)
                 width = 600
                 scale_percent = width / img.shape[1]
@@ -911,10 +887,9 @@ if combine:
                     selected_season = st.selectbox('Select Season:', season_values, index=current_season)
                     # Update Article's Usage
                     current_usage = usage_values.index(image_output.usage[0])
-                    selected_usage = st.selectbox('Select Usage:', usage_values, index=current_usage)                            
-                submitButton = st.form_submit_button("Update Article Values And Create Combinations")
-                if submitButton:
-                    on = False # Make this session state...
+                    selected_usage = st.selectbox('Select Usage:', usage_values, index=current_usage)
+                submit_button = st.form_submit_button("Update Article Values And Create Combinations")
+                if submit_button:
                     image_output.subCategory[0] = selected_category
                     image_output.articleType[0] = selected_type
                     image_output.gender[0] = selected_gender
@@ -923,13 +898,7 @@ if combine:
                     image_output.usage[0] = selected_usage
                     st.success("Article has been updated.", icon="✅")
                     '###### Combinations Table'
-                    combinations = pd.DataFrame(ward.create_combinations_of_article_with_wardrobe_clothes(image_output),
-                                                # columns=['Category','Article','Gender_Age_Group','Base_Colour','Season','Usage',
-                                                #             'Image_path', 'ID_match','Category_match', 'Article_match', 
-                                                #             'Gender_Age_Group_match', 'Base_Colour_match', 'Season_match', 
-                                                # 'Usage_match', 
-                                                #             'Image_path_match']
-                                                )
+                    combinations = pd.DataFrame(ward.create_combinations_of_article_with_wardrobe_clothes(image_output))
                     st.dataframe(combinations, hide_index=True, 
                                  column_config={"subCategory": st.column_config.Column('Category'),
                                                 "articleType": st.column_config.Column('Article'),
@@ -946,59 +915,26 @@ if combine:
                         else:
                             st.image(combinations.image_path_match[i], use_column_width='auto', channels='BGR')
                             st.image(combinations.image_path[i], use_column_width='auto', channels='BGR')
-                    
-                # , on_click=new_article_form, args=(image_output,det_colour,))
-
-            # with st.form("new_article_form"):
-            #     col1, col2, col3 = st.columns(3)
-            #     with col1:
-            #         # Update Article's Category value
-            #         current_category = category_values.index(image_output.subCategory[0])
-            #         selected_category = st.selectbox('Select Category:', category_values, index=current_category)
-            #         # Update Article's Type value
-            #         current_type = type_values.index(image_output.articleType[0])
-            #         selected_type = st.selectbox('Select Type:', type_values, index=current_type)
-            #     with col2:
-            #         # Update Article's Gender/Age Group
-            #         current_gender = gender_values.index(image_output.gender[0])
-            #         selected_gender = st.selectbox('Select Gender/Age Group:', gender_values, index=current_gender)
-            #         # Update Article's baseColour
-            #         current_colour = colour_values.index(st.session_state.new_article_colour)
-            #         selected_colour = st.selectbox('Select Base Colour:', colour_values, index=current_colour)
-            #     with col3:
-            #         # Update Article's Season
-            #         current_season = season_values.index(image_output.season[0])
-            #         selected_season = st.selectbox('Select Season:', season_values, index=current_season)
-            #         # Update Article's Usage
-            #         current_usage = usage_values.index(image_output.usage[0])
-            #         selected_usage = st.selectbox('Select Usage:', usage_values, index=current_usage)                            
-            #     submitButton = st.form_submit_button("Update Article Values And Create Combinations")
-            #     if submitButton:
-            #         image_output.subCategory[0] = selected_category
-            #         image_output.articleType[0] = selected_type
-            #         image_output.gender[0] = selected_gender
-            #         image_output.baseColour[0] = selected_colour
-            #         image_output.season[0] = selected_season
-            #         image_output.usage[0] = selected_usage
-            #         st.success("Article has been updated.", icon="✅")
-            #         '###### Combinations Table'
-            #         combinations = pd.DataFrame(ward.create_combinations_of_article_with_wardrobe_clothes(image_output),
-            #                                     columns=['Category','Article','Gender_Age_Group','Base_Colour','Season','Usage',
-            #                                              'Image_path', 'ID_match','Category_match', 'Article_match', 
-            #                                              'Gender_Age_Group_match', 'Base_Colour_match', 'Season_match', 
-            # 'Usage_match', 
-            #                                              'Image_path_match'])
-            #         comb_df = st.dataframe(combinations, hide_index=True)
-            #         for i, row in combinations.iterrows():
-            #             f'###### Combination {i+1}'
-            #             if combinations.subCategory[i] == 'Topwear':
-            #                 st.image(combinations.image_path[i], use_column_width='auto', channels='BGR')
-            #                 st.image(combinations.image_path_match[i], use_column_width='auto', channels='BGR')
-            #             else:
-            #                 st.image(combinations.image_path_match[i], use_column_width='auto', channels='BGR')
-            #                 st.image(combinations.image_path[i], use_column_width='auto', channels='BGR')
         if photo_path and not is_url_image(photo_path):
-            catch_wrong_url_image()    
+            catch_wrong_url_image()           
+    with tab2:
+        ward.create_combinations_in_wardrobe()
+        combinations = pd.DataFrame(ward.get_all_clothes_combinations(), 
+                                  columns=['Combination_ID', 'Article_ID_1', 'Article_ID_2'])
+        comb_df = st.dataframe(combinations,
+        column_config={"Image_Path_1": st.column_config.LinkColumn(
+            help="URL to view the article", required=True),
+            "Image_Path_2": st.column_config.LinkColumn(
+            help="URL to view the article", required=True)},
+        hide_index=True, use_container_width=True)
+        if (len(ward.get_existing_combination_ids()) > 0):
+            # Article ID
+            comb_id = st.selectbox('Select Combination ID:', tuple(ward.get_existing_combination_ids()))
+            # Combination's Images (first Topwear and below the Bottomwear)
+            img_1 = ward.get_top_bottom_article_image_path(comb_id, 'Topwear')
+            st.image(img_1, use_column_width='auto', channels='BGR')
+            img_2 = ward.get_top_bottom_article_image_path(comb_id, 'Bottomwear')
+            st.image(img_2, use_column_width='auto', channels='BGR')
 
 # Sidebar option to delete the wardrobe
 if delete:
