@@ -926,7 +926,8 @@ if combine:
                     combinations = pd.DataFrame(ward.create_combinations_of_article_with_wardrobe_clothes(image_output),
                                                 # columns=['Category','Article','Gender_Age_Group','Base_Colour','Season','Usage',
                                                 #             'Image_path', 'ID_match','Category_match', 'Article_match', 
-                                                #             'Gender_Age_Group_match', 'Base_Colour_match', 'Season_match', 'Usage_match', 
+                                                #             'Gender_Age_Group_match', 'Base_Colour_match', 'Season_match', 
+                                                # 'Usage_match', 
                                                 #             'Image_path_match']
                                                 )
                     st.dataframe(combinations, hide_index=True, 
@@ -984,7 +985,8 @@ if combine:
             #         combinations = pd.DataFrame(ward.create_combinations_of_article_with_wardrobe_clothes(image_output),
             #                                     columns=['Category','Article','Gender_Age_Group','Base_Colour','Season','Usage',
             #                                              'Image_path', 'ID_match','Category_match', 'Article_match', 
-            #                                              'Gender_Age_Group_match', 'Base_Colour_match', 'Season_match', 'Usage_match', 
+            #                                              'Gender_Age_Group_match', 'Base_Colour_match', 'Season_match', 
+            # 'Usage_match', 
             #                                              'Image_path_match'])
             #         comb_df = st.dataframe(combinations, hide_index=True)
             #         for i, row in combinations.iterrows():
