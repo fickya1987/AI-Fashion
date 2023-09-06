@@ -5,7 +5,7 @@ import math
 from keras.models import Model
 from keras.layers import Input, Dense, Flatten
 from keras.applications.resnet50 import ResNet50, preprocess_input
-import plotly.express as px
+from plotly import express as px
 import cv2
 import sqlite3
 from urllib.request import Request, urlopen
@@ -275,8 +275,6 @@ class Wardrobe:
                 predicted_class_index = np.argmax(y_pred_output, axis=1)[0]
             # Get the corresponding human-readable class label
             image_output_class = self.target_names[i][predicted_class_index]
-#             # Print the predicted class label
-#             print("The predicted class for", output[i], "is", image_output_class)
             # Store the predicted class in the dictionary
             output_dict[output[i]] = [image_output_class]
         # Create a DataFrame from the dictionary
@@ -361,7 +359,7 @@ class Wardrobe:
         # Define the SELECT query to show all existing image paths
         query = "SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='combinations'"
         result_list = [t[0] for t in self.query_wardrobe(query)]
-        return result_list == 1
+        return result_list[0] == 1
     
     def get_subCategory_of_article_with_id(self, article_id):
         # Establish a connection to the SQLite database
@@ -663,25 +661,38 @@ class Wardrobe:
         return df
 
     def get_usage_fig(self):
-        # Step 1: Retrieve data
+        # Retrieve data
         query = 'SELECT id, id_1, id_2 FROM combinations'
         df = pd.read_sql_query(query, self.conn)
         unused_ids = self.get_not_used_clothes()['id']
-        unused_data = pd.Series(0, index=unused_ids, name='Percentage')
-        # df = self.get_all_clothes_combinations()
-        # Step 2: Stack id_1 and id_2 columns into a single column and calculate percentages
-        stacked = df[['id_1', 'id_2']].stack().reset_index(level=1, drop=True).reset_index(name='Percentage')
-        percentage_values = stacked['Percentage'].value_counts() / len(df['id']) * 100
-        # Step 4: Combine the DataFrames
-        combined_df = pd.concat([percentage_values, unused_data], axis=0, sort=False)
-        combined_df = combined_df.rename_axis('ID')
-        average_percentage = combined_df.mean()
-        # Step 3: Create a Plotly chart
-        fig = px.bar(combined_df, orientation='h', height=len(df)*42,
-             title='Percentage of Clothes Participation in the Outfits created')
-        fig.add_shape(type="line", x0=average_percentage, x1=average_percentage, y0=combined_df.index.min()-0.5,
-              y1=combined_df.index.max()+0.5, line=dict(color="red", width=3))
-        fig.update_traces(marker_color='purple')
+        unused_data = pd.Series(0, index=unused_ids, name='Combinations')
+        # Stack id_1 and id_2 columns into a single column and calculate percentages
+        stacked = df[['id_1', 'id_2']].stack().reset_index(level=1, drop=True).reset_index(name='Combinations')
+        comb_part = stacked['Combinations'].value_counts()
+        # Combine the DataFrames
+        combined_df = pd.concat([comb_part, unused_data], axis=0, sort=False)
+        # combined_df = combined_df.rename_axis('ID')
+        # Convert the Series to a DataFrame with 'ID' as the index
+        combined_df = combined_df.reset_index().rename(columns={'index': 'ID'})
+        combined_df['Percentage'] = round(combined_df.Combinations / len(df['id']) * 100, 1)
+        print(combined_df)
+        # combined_df.index = pd.Categorical(combined_df.index, ordered=True)
+        average_percentage = combined_df['Percentage'].mean()
+        # Create a Plotly chart
+        fig = px.bar(combined_df, x=combined_df['Percentage'], y=combined_df['ID'], orientation='h', height=len(df)*45,
+                     color=combined_df['Combinations'], title='Percentage of Clothes Participation in the Outfits created')
+        # Add a horizontal line for the average percentage
+        fig.add_shape(type="line", x0=average_percentage, x1=average_percentage, y0=combined_df['ID'].min()-0.5,
+                    y1=combined_df['ID'].max()+0.5, line=dict(color="red", width=3))
+        # Add a label to the horizontal line
+        fig.add_annotation(x=average_percentage, y=combined_df['ID'].max()+1,
+                        text="Average Percent of Clothes Usage", showarrow=False, font=dict(color="red"))
+        fig.update_xaxes(title_text='Percentage (%)')  # Change the x-axis label
+        # Customize the y-axis labels to start from 0 and be sequential
+        fig.update_yaxes(tickvals=combined_df['ID'], ticktext=combined_df['ID'], categoryorder='array', title_text='Article ID')
+        # fig.update_traces(marker_color='purple')
+        # Hide the legend
+        fig.update_layout(showlegend=False)
         return fig
 
 
@@ -982,8 +993,11 @@ if combine:
             st.image(img_2, use_column_width='auto', channels='BGR')
 
 if usage:
-    fig = ward.get_usage_fig()
-    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+    if ward.does_combinations_table_exist():
+        fig = ward.get_usage_fig()
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+    else:
+        st.info('Firstly create combinations in your wardrobe (Clothes Combinations > My Wardrobe Combinations).')
 
 # Sidebar option to delete the wardrobe
 if delete:
