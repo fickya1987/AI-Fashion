@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Flatten, Lambda, Dropout
 from tensorflow.keras.applications import efficientnet_v2
+from tensorflow.keras.optimizers import Adam
 from sklearn.cluster import KMeans
 from plotly import express as px
 import cv2
@@ -73,6 +74,13 @@ def update_table(id, new_value):
     ward = Wardrobe()
     ward.update_color_of_article_with_id(id, new_value)
     st.success(f"Article with ID {id} has been updated.", icon="✅")
+
+def update_article_with_id(selected_id, selected_category, selected_type, selected_gender, 
+                           selected_colour, selected_season, selected_usage, selected_description):
+    ward = Wardrobe()
+    ward.update_article_with_id(selected_id, selected_category, selected_type, selected_gender,
+                                selected_colour, selected_season, selected_usage, selected_description)
+    st.success(f"Article with ID {selected_id} has been updated.", icon="✅")
 
 def new_article_form(image_output, colour):
     ward = Wardrobe()
@@ -243,6 +251,13 @@ class Wardrobe:
         usage_output = Dense(num_classes_usage, activation='softmax', name='usage_output')(x)
         # Create the model with multiple output layers
         model = Model(inputs=inputs, outputs=[subCategory_output, articleType_output, gender_output, season_output, usage_output])
+        model.compile(optimizer=Adam(0.0001),
+              loss={'subCategory_output': 'binary_crossentropy',
+                    'articleType_output': 'sparse_categorical_crossentropy',
+                    'gender_output': 'binary_crossentropy',
+                    'season_output': 'binary_crossentropy',
+                    'usage_output': 'sparse_categorical_crossentropy'},
+              metrics=['accuracy'])
         model.load_weights(weights_path)
         return model
         
@@ -651,17 +666,13 @@ class Wardrobe:
         # Filter the merged DataFrame based on conditions
         filtered_df = merged_df[
             # Match Bottomwear with Topwear
-            (merged_df['subCategory'] != merged_df['subCategory_match']) &
-            (
-                # Match equal season or All season with any other
-                (merged_df['season'] == merged_df['season_match']) |
-                (merged_df['season'] == 'All season') |
-                (merged_df['season_match'] == 'All season')
-            ) &
-            (
-                # Match equal gender
-                (merged_df['gender'] == merged_df['gender_match'])
-            )
+            (merged_df['subCategory'] != merged_df['subCategory_match']) & 
+            # Match equal season or All season with any other
+            ((merged_df['season'] == merged_df['season_match']) | 
+             (merged_df['season'] == 'All Season') | 
+             (merged_df['season_match'] == 'All Season')) & 
+            # Match equal gender
+            ((merged_df['gender'] == merged_df['gender_match']))
         ]
         # Filter the dataset based on color compatibility
         return filtered_df[filtered_df.apply(lambda row: self.get_compatible_colors(row['baseColour'], 
@@ -700,7 +711,7 @@ class Wardrobe:
         
     def get_all_clothes_combinations(self):
         # Define the SELECT query to show all user's clothes
-        query = 'SELECT id, id_1, id_2 FROM combinations'
+        query = 'SELECT id, usage, season_1, id_1, season_2, id_2 FROM combinations'
         # Call the function to run the SELECT query on the database and retrieve the result
         return self.query_table(query)
     
@@ -750,7 +761,8 @@ class Wardrobe:
 
     def get_relevant_combination_ids(self, season, selected_usage):
         # Define the SELECT query to show all existing IDs
-        query = f"SELECT ID FROM combinations WHERE season_1 IN ('{season}','All Season') AND usage = '{selected_usage}'"
+        query = f"SELECT ID FROM combinations WHERE season_1 IN ('{season}','All Season') \
+            AND season_2 IN ('{season}','All Season') AND usage = '{selected_usage}'"
         # Call the function to run the SELECT query on the database and retrieve the result
         result_list = [t[0] for t in self.query_table(query)]
         return result_list
@@ -975,10 +987,9 @@ if manage:
                                                 key="art_descr", placeholder=current_description)
             if selected_description == '':
                 selected_description = current_description
-            if st.form_submit_button("Update Article"):
-                ward.update_article_with_id(selected_id, selected_category, selected_type, selected_gender,
-                                                            selected_colour, selected_season, selected_usage, selected_description)
-                st.success(f"Article with ID {selected_id} has been updated.", icon="✅")
+            st.form_submit_button("Update Article", on_click=update_article_with_id, 
+                                     args=(selected_id, selected_category, selected_type, selected_gender,
+                                           selected_colour, selected_season, selected_usage, selected_description))
         # Create a button to delete the article
         st.button('Delete article from Wardrobe', on_click=delete_article, type="primary")
     else:
@@ -1096,7 +1107,7 @@ if combine:
         with tab2:
             ward.create_combinations_in_wardrobe()
             combinations = pd.DataFrame(ward.get_all_clothes_combinations(), 
-                                    columns=['Combination_ID', 'Article_ID_1', 'Article_ID_2'])
+                                    columns=['Combination_ID', 'Usage', 'Season_1', 'Article_ID_1', 'Season_2', 'Article_ID_2'])
             comb_df = st.dataframe(combinations,
             column_config={"Image_Path_1": st.column_config.LinkColumn(
                 help="URL to view the article", required=True),
@@ -1125,9 +1136,10 @@ if planner:
             else:
                 season = 'Fall/Winter'
             selected_usage = st.selectbox('What\'s the dress code', usage_values)
+            print(ward.get_relevant_combination_ids(season, selected_usage))
             if (len(ward.get_relevant_combination_ids(season, selected_usage)) > 0):
                 # Article ID
-                comb_id = st.selectbox('Select Combination ID:', tuple(ward.get_relevant_combination_ids(season, selected_usage)))
+                comb_id = st.selectbox('Combination ID:', tuple(ward.get_relevant_combination_ids(season, selected_usage)))
                 # Combination's Images (first Topwear and below the Bottomwear)
                 img_1, path_1 = ward.get_top_bottom_article_image_path(comb_id, 'Topwear')
                 st.image(img_1, use_column_width='auto', channels='BGR')
