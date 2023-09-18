@@ -1,4 +1,4 @@
-<img src="data/AUEB.png" />  <img src="data/MSc_BA.png" />
+<img src="data/AUEB.png" /> | <img src="data/MSc_BA.png" />
 ___
 
 # Athens University of Economics and Business
