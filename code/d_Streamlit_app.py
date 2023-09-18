@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import math
+import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense, Flatten
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
+from tensorflow.keras.layers import Input, Dense, Flatten, Lambda, Dropout
+from tensorflow.keras.applications import efficientnet_v2
 from sklearn.cluster import KMeans
 from plotly import express as px
 import cv2
@@ -43,7 +44,7 @@ def catch_wrong_url_image():
                     If you want to enter a photo URL path, you can follow the instructions below:
                     
                     1. Right-click on the selected article image.
-                    2. Select the option `Copy image address`, as shown on the image below.
+                    2. Select the option `Copy image link/address`, as shown on the image below.
                     3. (Optional) Paste the copied URL path on a new tab and press `Enter` key to check that is the correct image.
                     4. Paste the copied URL path on the text input area above.
                 ''')
@@ -209,46 +210,39 @@ class Wardrobe:
         self.target_names = [subCategory_labels, articleType_labels, gender_labels, season_labels, usage_labels]
 
     def create_model(self, df):
-        weights_path = '../models/ResNet50_stable_weights.hdf5'
+        weights_path = '../models/EfficientNetV2S_train_top/weights.019-1.28.hdf5'
         # Define image dimensions
         img_height, img_width = 224, 224
-        # Use the ResNet50 pretrained model as the feature extractor
-        resnet_model = ResNet50(include_top=False,
+        # Use the Efficient Net v2-S pretrained model as the feature extractor
+        efficient_V2S_model = efficientnet_v2.EfficientNetV2S(include_top=False,
                                 input_shape=(img_height, img_width, 3),
                                 pooling='avg',
                                 weights='imagenet')
-        # Freeze the layers of the ResNet50 model to use it as a feature extractor
-        for layer in resnet_model.layers:
+        # Fine-tune from this layer onwards
+        fine_tune_at = 450
+        # Freeze the layers of the Efficient Net model (514 layers) to use it as a feature extractor
+        for layer in efficient_V2S_model.layers[:fine_tune_at]:
             layer.trainable = False
         # Create the multi-output model
         inputs = Input(shape=(img_height, img_width, 3))
-        x = preprocess_input(inputs)
-        x = resnet_model(x)
+        x = efficientnet_v2.preprocess_input(inputs)
+        x = Lambda(lambda img: tf.image.rgb_to_grayscale(img))(x)
+        x = Lambda(lambda img: tf.image.grayscale_to_rgb(img))(x)
+        x = efficient_V2S_model(x)
         x = Flatten()(x)
+        x = Dropout(0.2)(x)  # Regularize with dropout
         x = Dense(512, activation='relu')(x)
         # Define the number of classes for each output column
-        num_classes_gender = len(df['gender'].unique())
         num_classes_articleType = len(df['articleType'].unique())
-        # num_classes_baseColour = len(df['baseColour'].unique())
         num_classes_usage = len(df['usage'].unique())
         # Output layers for each output column
         subCategory_output = Dense(1, activation='sigmoid', name='subCategory_output')(x)
         articleType_output = Dense(num_classes_articleType, activation='softmax', name='articleType_output')(x)
-        gender_output = Dense(num_classes_gender, activation='softmax', name='gender_output')(x)
-        # baseColour_output = Dense(num_classes_baseColour, activation='softmax', name='baseColour_output')(x)
+        gender_output = Dense(1, activation='sigmoid', name='gender_output')(x)
         season_output = Dense(1, activation='sigmoid', name='season_output')(x)
         usage_output = Dense(num_classes_usage, activation='softmax', name='usage_output')(x)
         # Create the model with multiple output layers
         model = Model(inputs=inputs, outputs=[subCategory_output, articleType_output, gender_output, season_output, usage_output])
-        # Compile the model with appropriate loss functions for each output
-        model.compile(optimizer='adam',
-                    loss={'subCategory_output': 'binary_crossentropy',
-                            'articleType_output': 'sparse_categorical_crossentropy',  
-                            'gender_output': 'sparse_categorical_crossentropy',
-                            # 'baseColour_output': 'sparse_categorical_crossentropy',
-                            'season_output': 'binary_crossentropy',
-                            'usage_output': 'sparse_categorical_crossentropy'},
-                    metrics=['accuracy'])
         model.load_weights(weights_path)
         return model
         
@@ -312,7 +306,7 @@ class Wardrobe:
             output_dict[output[i]] = [image_output_class]
         # Create a DataFrame from the dictionary
         output_dict['baseColour'] = self.extract_dominant_color(path)
-        output_dict['description'] = [f"{output_dict['baseColour']}_{output_dict['articleType']}"]
+        output_dict['description'] = f"{output_dict['baseColour']}_{output_dict['articleType'][0]}"
         output_dict['image_path'] = [path]
         return pd.DataFrame(output_dict)
     
@@ -653,22 +647,20 @@ class Wardrobe:
     def get_compatible_colors(self, color1, color2):
         return color2 in self.color_compatibility_rules.get(color1, [])
     
-    def filter_merged_df(self, filtered_df):
+    def filter_merged_df(self, merged_df):
         # Filter the merged DataFrame based on conditions
-        filtered_df = filtered_df[
+        filtered_df = merged_df[
             # Match Bottomwear with Topwear
-            (filtered_df['subCategory'] != filtered_df['subCategory_match']) &
+            (merged_df['subCategory'] != merged_df['subCategory_match']) &
             (
-                # Match equal gender or Unisex with any other
-                (filtered_df['season'] == filtered_df['season_match']) |
-                (filtered_df['season'] == 'All season') |
-                (filtered_df['season_match'] == 'All season')
+                # Match equal season or All season with any other
+                (merged_df['season'] == merged_df['season_match']) |
+                (merged_df['season'] == 'All season') |
+                (merged_df['season_match'] == 'All season')
             ) &
             (
-                # Match equal gender or Unisex with any other
-                (filtered_df['gender'] == filtered_df['gender_match']) |
-                (filtered_df['gender'] == 'Unisex') |
-                (filtered_df['gender_match'] == 'Unisex')
+                # Match equal gender
+                (merged_df['gender'] == merged_df['gender_match'])
             )
         ]
         # Filter the dataset based on color compatibility
@@ -699,11 +691,12 @@ class Wardrobe:
                   id_1 INTEGER, subCategory_1 TEXT, image_path_1 TEXT, season_1 TEXT, usage TEXT,\
                   id_2 INTEGER, subCategory_2 TEXT, image_path_2 TEXT, season_2 TEXT)''')
         # Insert the values into the 'combinations' table in the database
-        c.executemany('INSERT INTO combinations (id_1, subCategory_1, image_path_1, season_1, usage, id_2, subCategory_2, \
-                image_path_2, season_2) VALUES (?,?,?,?,?,?,?,?,?)', filtered_df[['id','subCategory','image_path',\
-                'season','usage','id_match','subCategory_match','image_path_match','season_match']].values.tolist())
-        # Commit changes to the database
-        conn.commit()
+        if not filtered_df.empty:
+            c.executemany('INSERT INTO combinations (id_1, subCategory_1, image_path_1, season_1, usage, id_2, subCategory_2, \
+                    image_path_2, season_2) VALUES (?,?,?,?,?,?,?,?,?)', filtered_df[['id','subCategory','image_path',
+                    'season','usage','id_match','subCategory_match','image_path_match','season_match']].values.tolist())
+            # Commit changes to the database
+            conn.commit()
         
     def get_all_clothes_combinations(self):
         # Define the SELECT query to show all user's clothes
@@ -737,7 +730,6 @@ class Wardrobe:
         # Convert the Series to a DataFrame with 'ID' as the index
         combined_df = combined_df.reset_index().rename(columns={'index': 'ID'})
         combined_df = combined_df.rename(columns={0: 'Combinations'})
-        print(combined_df)
         combined_df['Percentage'] = round(combined_df['Combinations'] / len(df['id']) * 100, 1)
         average_percentage = combined_df['Percentage'].mean()
         # Create a Plotly chart
@@ -978,9 +970,11 @@ if manage:
                 current_usage = usage_values.index(ward.get_usage_of_article_with_id(selected_id))
                 selected_usage = st.selectbox('Select Usage:', usage_values, index=current_usage)
             # Update Article's Description
-            current_descrition = ward.get_description_of_article_with_id(selected_id)
+            current_description = ward.get_description_of_article_with_id(selected_id)
             selected_description = st.text_input('Enter Article Description:', 
-                                                key="art_descr", placeholder=current_descrition)
+                                                key="art_descr", placeholder=current_description)
+            if selected_description == '':
+                selected_description = current_description
             if st.form_submit_button("Update Article"):
                 ward.update_article_with_id(selected_id, selected_category, selected_type, selected_gender,
                                                             selected_colour, selected_season, selected_usage, selected_description)
