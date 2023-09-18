@@ -89,6 +89,9 @@ These algorithms collectively empower our project to handle image classification
 
 ## Tools
 Python Programming Language.
+
 Scikit-Learn and Tensorflow libraries.
+
 Streamlit open-source app framework to create beautiful web app.
+
 SQLite Database Engine.
