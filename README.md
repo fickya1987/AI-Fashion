@@ -42,4 +42,10 @@ ___
 </table>
 
 # AI Fashion
- A project for the Machine Learning and Content Analytics course of the AUEB's MSc in Business Analytics, made by the Yankee team of the full-timers
+ A project for the Machine Learning and Content Analytics course of the AUEB's MSc in Business Analytics, made by the Yankee team of the full-timers.
+
+ ## Project Description
+ Our main project idea, named `Image Classification for Outfit Suggestions` is to create an application, named `dressmeup`, that can create outfit combinations based on user’s input photos. So, the business question, that our project seeks a good solution, is: 
+`What to wear today (or a specific given day) from the clothes I have?`, and 
+`Does an article (garment) that I like can be well-combined with the clothes I have?`.
+
