@@ -92,6 +92,6 @@ Python Programming Language.
 
 Scikit-Learn and Tensorflow libraries.
 
-Streamlit open-source app framework to create beautiful web app.
+Streamlit open-source app framework to create web application.
 
 SQLite Database Engine.
