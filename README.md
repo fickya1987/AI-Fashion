@@ -88,7 +88,7 @@ In our project, we utilize a diverse set of algorithms to tackle various aspects
 These algorithms collectively empower our project to handle image classification, feature extraction, and color analysis tasks effectively. Each algorithm plays a specific role, contributing to the overall success of our fashion item classification model.
 
 ## Tools
-Python Programming Language.
+Python (version 3.11) Programming Language.
 
 Scikit-Learn and Tensorflow libraries.
 
