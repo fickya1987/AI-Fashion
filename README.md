@@ -95,3 +95,12 @@ Scikit-Learn and Tensorflow libraries.
 Streamlit open-source app framework to create web application.
 
 SQLite Database Engine.
+
+## Results
+### Average Output Accuracy per Model and Dataset
+| Models | Train Avg Output Accuracy | Evaluation Avg Output Accuracy | Test Avg Output Accuracy |
+| :---   |  ---: |       ---: | ---: |
+| 1. SGD Classifier (SVM) | 69.0 | - | 66.6 |
+| 2. Passive Aggressive Classifier | 64.4  | - | 63.0 |
+| 3. CNN with pre-trained ResNet50 | 87.2 | 82.5 | 82.1 |
+| 4. CNN with pre-trained EfficientNetv2-S | 96.4 | 90.0 | 90.7 |
