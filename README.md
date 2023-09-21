@@ -92,7 +92,7 @@ Python (version 3.11) Programming Language.
 
 Scikit-Learn and Tensorflow libraries.
 
-Streamlit open-source app framework to create web application.
+Streamlit open-source app framework to create web application (deployed [here](https://dressmeapp.streamlit.app/) without the Click & Update option and with a slight UI/Performance upgrade).
 
 SQLite Database Engine.
 
